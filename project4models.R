@@ -1,7 +1,7 @@
 #BIOSTAT699 Project 4 
 #Model Building
 
-#packages
+#packages ----
 library(survival)
 library(dplyr)
 library(readxl)
@@ -9,7 +9,7 @@ library(lubridate)
 library(naniar)
 library(UpSetR)
 
-#read data set 
+#read data set ----
 surv_data <- read_xlsx("final_target_RP.xlsx")
 #View(surv_data)
 
@@ -21,11 +21,12 @@ surv_data %>% select(-c(T1,T21, T22, T23, Censoring, asdate, trttype)) %>% gg_mi
 #check number of adjuvant events
 sum(surv_data$delt == 1) #469 adjuvant events
 
-#turn timeX into days since time = 0 (RP date)
-surv_data <- surv_data %>% mutate(X = difftime(timeX, rrpdate, units = "days"))
 
 #Question 1 ----
 #Has the use of adjuvant therapy in MUSIC changed as a result of the Randomized Trial Data published in 2020?
+
+#turn timeX into days since time = 0 (RP date)
+surv_data <- surv_data %>% mutate(X = difftime(timeX, rrpdate, units = "days"))
 
 #create indicator of RP before or after 2020
 surv_data <- surv_data %>% mutate(i_2020 = ifelse(year(rrpdate) < 2020, 0, 1))
@@ -40,6 +41,8 @@ summary(mod1)
 #patient characteristics: age, race, family history,comorbidities
 #disease characteristics: s_gg (grade group), margin, epe, svi, pre-op PSA
 #need to create pre-op PSA and comorbidities sum variables!!
+
+#recoding categorical variables
 surv_data$race <- as.factor(surv_data$race)
 surv_data$race <- relevel(surv_data$race, ref = 4) #use white as reference group, since it has the highest sample size
 
