@@ -6,10 +6,17 @@ library(survival)
 library(dplyr)
 library(readxl)
 library(lubridate)
+library(naniar)
+library(UpSetR)
 
 #read data set 
 surv_data <- read_xlsx("final_target_RP.xlsx")
 #View(surv_data)
+
+
+#missing values ----
+sum(is.na(surv_data) == T) #35243 NAs
+surv_data %>% select(-c(T1,T21, T22, T23, Censoring, asdate, trttype)) %>% gg_miss_upset() #visualize missing data, very small proportion of missing data
 
 #check number of adjuvant events
 sum(surv_data$delt == 1) #469 adjuvant events
