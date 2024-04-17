@@ -43,13 +43,34 @@ summary(mod1)
 #need to create pre-op PSA and comorbidities sum variables!!
 
 #recoding categorical variables
+#fix race categories!!
 surv_data$race <- as.factor(surv_data$race)
 surv_data$race <- relevel(surv_data$race, ref = 4) #use white as reference group, since it has the highest sample size
 
+surv_data$s_gg <- as.factor(surv_data$s_gg)
+surv_data$s_gg <- relevel(surv_data$s_gg, ref = 1) #use low risk group as reference?
+
+surv_data$margin <- as.factor(surv_data$margin)
+surv_data$epe <- as.factor(surv_data$epe)
+surv_data$svi <- as.factor(surv_data$svi)
+
+#family history
+surv_data <- surv_data %>% mutate(famhx_bin = case_when(
+  famhx == 6 ~ "No",
+  famhx <= 4 ~ "Yes",
+  famhx == 5 ~ "Unknown"
+))
+table(surv_data$famhx_bin)
+surv_data$famhx_bin <- relevel(as.factor(surv_data$famhx_bin), ref = "No")
+
+#count of comorbidities for each patient
+comorbid <- surv_data %>% select(patientid, mi, chf, pvd, cvd, dementia, cpd, ctd, ulcer, mildliver, diabnocomp, diaborgdam, hemiplegia, cri, tumor, leukemia, lymphoma, modsevliver, mettumor, aids)
+comorbid <- comorbid %>% mutate(com_count = rowSums(comorbid %>% select(-patientid))) %>% select(patientid, com_count)
+surv_data <- surv_data %>% merge(comorbid, by = "patientid")
+
 #still working on this model!
-mod2 <- coxph(Surv(X,delt) ~ i_2020 + age + race + s_gg + margin + epe + svi, data = surv_data)
-
-
+mod2 <- coxph(Surv(X,delt) ~ i_2020 + age + race + famhx_bin + com_count + s_gg + margin + epe + svi, data = surv_data)
+summary(mod2)
 
 
 #Question 3 ----
