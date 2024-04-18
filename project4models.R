@@ -8,6 +8,7 @@ library(readxl)
 library(lubridate)
 library(naniar)
 library(UpSetR)
+library(gtsummary)
 
 #read data set ----
 surv_data <- read_xlsx("final_target_RP.xlsx")
@@ -79,8 +80,15 @@ comorbid <- surv_data %>% select(patientid, mi, chf, pvd, cvd, dementia, cpd, ct
 comorbid <- comorbid %>% mutate(com_count = rowSums(comorbid %>% select(-patientid))) %>% select(patientid, com_count)
 surv_data <- surv_data %>% merge(comorbid, by = "patientid")
 
+#pre-op PSA
+surv_data <- surv_data %>% rename("preopPSA" = "labvalue")
+hist(surv_data$preopPSA) #highly right skewed!
+#log transformation of pre-op PSA, add 1 to account for zeros
+surv_data <- surv_data %>%  mutate(log_preopPSA = log(preopPSA + 1))
+hist(surv_data$log_preopPSA) #looks more normal in distribution :)
+
 #first version of this model
-mod2 <- coxph(Surv(X,delt) ~ i_2020 + age + race_bin + famhx_bin + com_count + risk_group + margin + epe + svi + labvalue, data = surv_data)
+mod2 <- coxph(Surv(X,delt) ~ i_2020 + age + race_bin + famhx_bin + com_count + risk_group + margin + epe + svi + log_preopPSA, data = surv_data)
 summary(mod2)
 
 
@@ -89,3 +97,7 @@ summary(mod2)
 #intervention to address the lack of de-implementation of adjuvant therapy?
 
 
+
+#table 1 ----
+table_1 <- surv_data %>% select(i_2020, age, race_bin, famhx_bin, com_count, risk_group, margin, epe, svi, preopPSA) %>% tbl_summary(by = "i_2020")
+table_1
