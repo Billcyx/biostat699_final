@@ -9,6 +9,7 @@ library(lubridate)
 library(naniar)
 library(UpSetR)
 library(gtsummary)
+library(cmprsk)
 
 #read data set ----
 surv_data <- read_xlsx("final_target_RP.xlsx")
@@ -34,8 +35,23 @@ surv_data <- surv_data %>% mutate(i_2020 = ifelse(year(rrpdate) < 2020, 0, 1))
 
 mod1 <- coxph(Surv(X, delt) ~ i_2020, data = surv_data)
 summary(mod1)
-#HR = 0.33, p-value < 0.001, significant decrease in risk of adjuvant therapy after 2020, compared to before 2020
+#HR = 0.33, p-value < 0.001, significant decrease in hazard of adjuvant therapy after 2020, compared to before 2020
 
+#cumulative incidence function
+#define competing risk indicator
+surv_data <- surv_data %>% mutate(comprisk = case_when(
+  timeX == T1 ~ 1,
+  timeX == T2 ~ 2,
+  timeX == Censoring ~ 0
+))
+#run CIF
+CIF <- cuminc(surv_data$X, surv_data$comprisk, surv_data$i_2020, cencode = 0)
+#plot CIF, adjuvant in red, competing risk in blue
+plot(CIF, 
+     ylim = c(0,0.25), 
+     xlim = c(0,365), 
+     lwd = 1.5,
+     color = c("red", "red", "blue", "blue"))
 
 #Question 2 ----
 #Do the findings from Objective 1 differ when considering patient and disease characteristics?
@@ -90,6 +106,8 @@ hist(surv_data$log_preopPSA) #looks more normal in distribution :)
 #first version of this model
 mod2 <- coxph(Surv(X,delt) ~ i_2020 + age + race_bin + famhx_bin + com_count + risk_group + margin + epe + svi + log_preopPSA, data = surv_data)
 summary(mod2)
+#HR for 2020: 0.2832, p-value < 0.001, similar result to unadjusted 
+#high risk group has significantly increased hazard of adjuvant therapy, compared to low risk group, makes sense
 
 
 #Question 3 ----
