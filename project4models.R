@@ -48,10 +48,12 @@ surv_data <- surv_data %>% mutate(comprisk = case_when(
 CIF <- cuminc(surv_data$X, surv_data$comprisk, surv_data$i_2020, cencode = 0)
 #plot CIF, adjuvant in red, competing risk in blue
 plot(CIF, 
-     ylim = c(0,0.25), 
-     xlim = c(0,365), 
+     ylim = c(0,0.15), 
+     xlim = c(0,325), 
      lwd = 1.5,
-     color = c("red", "red", "blue", "blue"))
+     color = c("red", "red", "blue", "blue"),
+     main = "Cumulative Incidence Function for Pre- vs Post-2020",
+     xlab = "Days")
 
 #Question 2 ----
 #Do the findings from Objective 1 differ when considering patient and disease characteristics?
