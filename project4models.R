@@ -44,8 +44,12 @@ summary(mod1)
 
 #recoding categorical variables
 #fix race categories!!
-surv_data$race <- as.factor(surv_data$race)
-surv_data$race <- relevel(surv_data$race, ref = 4) #use white as reference group, since it has the highest sample size
+surv_data <- surv_data %>% mutate(race_bin = case_when(
+  race == 4 ~ "white",
+  race < 4 | race == 5 ~"non-white",
+  race == 6 ~ NA))
+surv_data$race_bin <- as.factor(surv_data$race_bin)
+surv_data$race_bin <- relevel(surv_data$race_bin, ref = "white") #use white as reference group, since it has the highest sample size
 
 surv_data$s_gg <- as.factor(surv_data$s_gg)
 surv_data$s_gg <- relevel(surv_data$s_gg, ref = 1) #use low risk group as reference?
@@ -68,8 +72,8 @@ comorbid <- surv_data %>% select(patientid, mi, chf, pvd, cvd, dementia, cpd, ct
 comorbid <- comorbid %>% mutate(com_count = rowSums(comorbid %>% select(-patientid))) %>% select(patientid, com_count)
 surv_data <- surv_data %>% merge(comorbid, by = "patientid")
 
-#still working on this model!
-mod2 <- coxph(Surv(X,delt) ~ i_2020 + age + race + famhx_bin + com_count + s_gg + margin + epe + svi, data = surv_data)
+#first version of this model
+mod2 <- coxph(Surv(X,delt) ~ i_2020 + age + race_bin + famhx_bin + com_count + s_gg + margin + epe + svi + labvalue, data = surv_data)
 summary(mod2)
 
 
