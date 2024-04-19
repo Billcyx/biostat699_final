@@ -115,7 +115,12 @@ summary(mod2)
 #Question 3 ----
 #Are there practices that may need a quality improvement 
 #intervention to address the lack of de-implementation of adjuvant therapy?
+#identify practices with large sample size
+table(surv_data$providerid) #check how many patients for each provider
+providers <- surv_data %>% group_by(providerid) %>% summarise(n = n()) %>% filter(n > 200)
+surv_data_provider <- surv_data %>% filter(providerid %in% providers$providerid)
 
+mod3 <- coxph(Surv(X,delt) ~ i_2020 + age + race_bin + famhx_bin + com_count + risk_group + margin + epe + svi + log_preopPSA + i_2020:providerid + strata(providerid) , data = surv_data_provider)
 
 
 #table 1 ----
