@@ -35,7 +35,7 @@ surv_data <- surv_data %>% mutate(i_2020 = ifelse(year(rrpdate) < 2020, 0, 1))
 
 mod1 <- coxph(Surv(X, delt) ~ i_2020, data = surv_data)
 summary(mod1)
-#HR = 0.33, p-value < 0.001, significant decrease in hazard of adjuvant therapy after 2020, compared to before 2020
+#HR = 0.3393, p-value < 0.001, significant decrease in hazard of adjuvant therapy after 2020, compared to before 2020
 
 #cumulative incidence function
 #define competing risk indicator
@@ -108,21 +108,31 @@ hist(surv_data$log_preopPSA) #looks more normal in distribution :)
 #first version of this model
 mod2 <- coxph(Surv(X,delt) ~ i_2020 + age + race_bin + famhx_bin + com_count + risk_group + margin + epe + svi + log_preopPSA, data = surv_data)
 summary(mod2)
-#HR for 2020: 0.2832, p-value < 0.001, similar result to unadjusted 
+#HR for 2020: 0.2913, p-value < 0.001, similar result to unadjusted 
 #high risk group has significantly increased hazard of adjuvant therapy, compared to low risk group, makes sense
+
+tbl_regression(mod1)
 
 
 #Question 3 ----
 #Are there practices that may need a quality improvement 
 #intervention to address the lack of de-implementation of adjuvant therapy?
+
 #identify practices with large sample size
 table(surv_data$providerid) #check how many patients for each provider
 providers <- surv_data %>% group_by(providerid) %>% summarise(n = n()) %>% filter(n > 200)
 surv_data_provider <- surv_data %>% filter(providerid %in% providers$providerid)
+surv_data_provider$providerid <- as.factor(surv_data_provider$providerid)
 
 mod3 <- coxph(Surv(X,delt) ~ i_2020 + age + race_bin + famhx_bin + com_count + risk_group + margin + epe + svi + log_preopPSA + i_2020:providerid + strata(providerid) , data = surv_data_provider)
-
+summary(mod3)
 
 #table 1 ----
-table_1 <- surv_data %>% select(i_2020, age, race_bin, famhx_bin, com_count, risk_group, margin, epe, svi, preopPSA) %>% tbl_summary(by = "i_2020")
+surv_data <- surv_data %>% mutate(i_2020_label = ifelse(i_2020 == 0, "Pre-2020", "Post-2020"))
+surv_data$i_2020_label <- as.factor(surv_data$i_2020_label)
+surv_data$i_2020_label <- relevel(surv_data$i_2020_label, ref = "Pre-2020")
+table_1 <- surv_data %>% select(i_2020_label, age, race_bin, famhx_bin, com_count, risk_group, margin, epe, svi, preopPSA) %>% 
+  tbl_summary(by = "i_2020_label", 
+              label = list(age ~ "Age", race_bin ~ "Race", famhx_bin ~ "Family History", com_count ~ "Number of Comorbidities", risk_group ~ "Risk Group", margin ~ "Surgical Margin Status", epe ~ "Extraprostatic extension", svi ~ "Seminal vesicle invasion", preopPSA ~ "Pre-Operative PSA"),
+              missing_text = "Missing")
 table_1
