@@ -127,13 +127,31 @@ table_mod12
 #intervention to address the lack of de-implementation of adjuvant therapy?
 
 #identify practices with large sample size
-table(surv_data$providerid, surv_data$i_2020) #check how many patients for each provider (pre- vs post-2020)
+temp <- surv_data %>% filter(delt == 1) 
+table(temp$providerid, temp$i_2020) #check how many patients for each provider (pre- vs post-2020)
 providers <- surv_data %>% group_by(providerid) %>% summarise(n = n()) %>% filter(n > 200)
 surv_data_provider <- surv_data %>% filter(providerid %in% providers$providerid)
 surv_data_provider$providerid <- as.factor(surv_data_provider$providerid)
 
 mod3 <- coxph(Surv(X,delt) ~ i_2020 + age_c + race_bin + famhx_bin + com_count + risk_group + margin + epe + svi + log_preopPSA + i_2020:providerid + strata(providerid) , data = surv_data_provider)
 summary(mod3)
+
+#another attempt
+events <- surv_data %>% filter(delt == 1) %>% group_by(providerid, i_2020) %>% summarise(n = n()) %>% ungroup()
+events <- events %>% mutate(event = ifelse( n > 1, 1, 0)) 
+events <- events %>% group_by(providerid) %>% summarise(event_sum = sum(event)) %>% mutate(events_prepost = ifelse(event_sum == 2, 1, 0))
+surv_data_3 <- merge(surv_data, events, by = "providerid")
+surv_data_3 <- surv_data_3 %>% mutate(provider = case_when(
+  (events_prepost == 1) ~ as.character(providerid),
+  (events_prepost == 0 & practice_type == 1) ~ "smallAcademic",
+  (events_prepost == 0 & practice_type == 2) ~ "smallCommunity",
+  (events_prepost == 0 & practice_type == 3) ~ "smallHybrid"
+))
+surv_data_3 <- surv_data_3 %>% filter(provider != "smallAcademic")
+surv_data_3$provider <- relevel(as.factor(surv_data_3$provider), ref = "3")
+mod3v2 <- coxph(Surv(X,delt) ~ i_2020 + age_c + race_bin + famhx_bin + com_count + risk_group + margin + epe + svi + log_preopPSA + i_2020:strata(provider) , data = surv_data_3)
+summary(mod3v2)
+
 
 #table 1 ----
 surv_data <- surv_data %>% mutate(i_2020_label = ifelse(i_2020 == 0, "Pre-2020", "Post-2020"))
