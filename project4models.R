@@ -37,6 +37,8 @@ mod1 <- coxph(Surv(X, delt) ~ i_2020, data = surv_data)
 summary(mod1)
 #HR = 0.3393, p-value < 0.001, significant decrease in hazard of adjuvant therapy after 2020, compared to before 2020
 
+table_mod1 <- tbl_regression(mod1, exponentiate = T, label = list(i_2020 ~ "Post-2020"))
+
 #cumulative incidence function
 #define competing risk indicator
 surv_data <- surv_data %>% mutate(comprisk = case_when(
@@ -60,6 +62,7 @@ plot(CIF,
 #patient characteristics: age, race, family history,comorbidities
 #disease characteristics: s_gg (grade group), margin, epe, svi, pre-op PSA
 #need to create pre-op PSA and comorbidities sum variables!!
+surv_data <- surv_data %>% mutate(age_c = age - mean(age, na.rm = T))
 
 #recoding categorical variables
 #race
@@ -106,12 +109,17 @@ surv_data <- surv_data %>%  mutate(log_preopPSA = log(preopPSA + 1))
 hist(surv_data$log_preopPSA) #looks more normal in distribution :)
 
 #first version of this model
-mod2 <- coxph(Surv(X,delt) ~ i_2020 + age + race_bin + famhx_bin + com_count + risk_group + margin + epe + svi + log_preopPSA, data = surv_data)
+mod2 <- coxph(Surv(X,delt) ~ i_2020 + age_c + race_bin + famhx_bin + com_count + risk_group + margin + epe + svi + log_preopPSA, data = surv_data)
 summary(mod2)
 #HR for 2020: 0.2913, p-value < 0.001, similar result to unadjusted 
 #high risk group has significantly increased hazard of adjuvant therapy, compared to low risk group, makes sense
 
-tbl_regression(mod1)
+mod2_v2 <-coxph(Surv(X,delt) ~ i_2020 + age_c + race_bin + famhx_bin + com_count + risk_group + margin + log_preopPSA, data = surv_data)
+summary(mod2_v2)
+
+table_mod2 <- tbl_regression(mod2, exponentiate = T, label = list(i_2020 ~ "Post-2020", age_c ~ "Age", race_bin ~ "Race", famhx_bin ~ "Family History", com_count ~ "Number of Comorbidities", risk_group ~ "Risk Group", margin ~ "Surgical Margin Status", epe ~ "Extraprostatic extension", svi ~ "Seminal vesicle invasion", log_preopPSA ~ "log(Pre-Operative PSA)"))
+table_mod12 <- tbl_merge(list(table_mod1, table_mod2), tab_spanner = c("Model 1", "Model 2")) %>% bold_labels()
+table_mod12
 
 
 #Question 3 ----
@@ -119,12 +127,12 @@ tbl_regression(mod1)
 #intervention to address the lack of de-implementation of adjuvant therapy?
 
 #identify practices with large sample size
-table(surv_data$providerid) #check how many patients for each provider
+table(surv_data$providerid, surv_data$i_2020) #check how many patients for each provider (pre- vs post-2020)
 providers <- surv_data %>% group_by(providerid) %>% summarise(n = n()) %>% filter(n > 200)
 surv_data_provider <- surv_data %>% filter(providerid %in% providers$providerid)
 surv_data_provider$providerid <- as.factor(surv_data_provider$providerid)
 
-mod3 <- coxph(Surv(X,delt) ~ i_2020 + age + race_bin + famhx_bin + com_count + risk_group + margin + epe + svi + log_preopPSA + i_2020:providerid + strata(providerid) , data = surv_data_provider)
+mod3 <- coxph(Surv(X,delt) ~ i_2020 + age_c + race_bin + famhx_bin + com_count + risk_group + margin + epe + svi + log_preopPSA + i_2020:providerid + strata(providerid) , data = surv_data_provider)
 summary(mod3)
 
 #table 1 ----
@@ -134,5 +142,6 @@ surv_data$i_2020_label <- relevel(surv_data$i_2020_label, ref = "Pre-2020")
 table_1 <- surv_data %>% select(i_2020_label, age, race_bin, famhx_bin, com_count, risk_group, margin, epe, svi, preopPSA) %>% 
   tbl_summary(by = "i_2020_label", 
               label = list(age ~ "Age", race_bin ~ "Race", famhx_bin ~ "Family History", com_count ~ "Number of Comorbidities", risk_group ~ "Risk Group", margin ~ "Surgical Margin Status", epe ~ "Extraprostatic extension", svi ~ "Seminal vesicle invasion", preopPSA ~ "Pre-Operative PSA"),
+              type = list(com_count ~ "continuous"),
               missing_text = "Missing")
 table_1
