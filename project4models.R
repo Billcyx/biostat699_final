@@ -10,6 +10,8 @@ library(naniar)
 library(UpSetR)
 library(gtsummary)
 library(cmprsk)
+library(ggplot2)
+library(survminer)
 
 #read data set ----
 surv_data <- read_xlsx("final_target_RP.xlsx")
@@ -17,11 +19,11 @@ surv_data <- read_xlsx("final_target_RP.xlsx")
 
 
 #missing values ----
-sum(is.na(surv_data) == T) #35243 NAs
+sum(is.na(surv_data) == T) #41801 NAs
 surv_data %>% select(-c(T1,T21, T22, T23, Censoring, asdate, trttype)) %>% gg_miss_upset() #visualize missing data, very small proportion of missing data
 
 #check number of adjuvant events
-sum(surv_data$delt == 1) #469 adjuvant events
+sum(surv_data$delt == 1) #474 adjuvant events
 
 
 #Question 1 ----
@@ -56,6 +58,21 @@ plot(CIF,
      color = c("red", "red", "blue", "blue"),
      main = "Cumulative Incidence Function for Pre- vs Post-2020",
      xlab = "Days")
+
+#better CIF plot
+CIFplot <- ggcompetingrisks(fit = CIF,
+                 xlab = "Days",
+                 title = "Cumulative Incidence Function for Pre- vs Post-2020",
+                 ylim = c(0,0.15),
+                 xlim = c(0, 350),
+                 lwd = 2,
+                 multiple_panels = F) +
+  scale_linetype_manual(name="Pre/Post 2020",values=c(1,2),labels=c("Pre-2020","Post-2020")) +
+  scale_color_discrete(labels = c(1 ~ "ART", 2 ~ "Competing Event"), type = c("red", "blue"))
+
+CIFplot$mapping <- aes(x = time, y = est, colour = event, linetype = group)
+
+CIFplot + labs(linetype = "Pre/Post 2020", colour = "Event")
 
 #Question 2 ----
 #Do the findings from Objective 1 differ when considering patient and disease characteristics?
@@ -148,9 +165,12 @@ surv_data_3 <- surv_data_3 %>% mutate(provider = case_when(
   (events_prepost == 0 & practice_type == 3) ~ "smallHybrid"
 ))
 surv_data_3 <- surv_data_3 %>% filter(provider != "smallAcademic")
-surv_data_3$provider <- relevel(as.factor(surv_data_3$provider), ref = "3")
+surv_data_3$provider <- relevel(as.factor(surv_data_3$provider), ref = "smallCommunity")
 mod3v2 <- coxph(Surv(X,delt) ~ i_2020 + age_c + race_bin + famhx_bin + com_count + risk_group + margin + epe + svi + log_preopPSA + i_2020:strata(provider) , data = surv_data_3)
 summary(mod3v2)
+
+table_mod3 <- tbl_regression(mod3v2, exponentiate = T)
+table_mod3
 
 
 #table 1 ----
