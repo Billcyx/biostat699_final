@@ -12,6 +12,7 @@ library(gtsummary)
 library(cmprsk)
 library(ggplot2)
 library(survminer)
+library(xtable)
 
 #read data set ----
 surv_data <- read_xlsx("final_target_RP.xlsx")
@@ -134,10 +135,22 @@ summary(mod2)
 mod2_v2 <-coxph(Surv(X,delt) ~ i_2020 + age_c + race_bin + famhx_bin + com_count + risk_group + margin + log_preopPSA, data = surv_data)
 summary(mod2_v2)
 
+
+library(finalfit)
+explanatory <- c("age", "race_bin", "famhx_bin", "", "heart", "cancer", "pre_psa", "after_2020")
+dependent_os  <- "Surv(time, delta1)"
+final %>%
+  coxphmulti(dependent_os, explanatory) %>%
+  cox.zph() %>%
+  {zph_result <<- .} %>%
+  plot(var=5)
+zph_result
+
+
 table_mod2 <- tbl_regression(mod2, exponentiate = T, label = list(i_2020 ~ "Post-2020", age_c ~ "Age", race_bin ~ "Race", famhx_bin ~ "Family History", com_count ~ "Number of Comorbidities", risk_group ~ "Risk Group", margin ~ "Surgical Margin Status", epe ~ "Extraprostatic extension", svi ~ "Seminal vesicle invasion", log_preopPSA ~ "log(Pre-Operative PSA)"))
 table_mod12 <- tbl_merge(list(table_mod1, table_mod2), tab_spanner = c("Model 1", "Model 2")) %>% bold_labels()
 table_mod12
-
+#xtable(as.data.frame(table_mod12))
 
 #Question 3 ----
 #Are there practices that may need a quality improvement 
@@ -155,8 +168,8 @@ summary(mod3)
 
 #another attempt
 events <- surv_data %>% filter(delt == 1) %>% group_by(providerid, i_2020) %>% summarise(n = n()) %>% ungroup()
-events <- events %>% mutate(event = ifelse( n > 1, 1, 0)) 
-events <- events %>% group_by(providerid) %>% summarise(event_sum = sum(event)) %>% mutate(events_prepost = ifelse(event_sum == 2, 1, 0))
+events <- events %>% mutate(event = ifelse( n > 1, 1, 0)) #only want practices with more than one event
+events <- events %>% group_by(providerid) %>% summarise(event_sum = sum(event)) %>% mutate(events_prepost = ifelse(event_sum == 2, 1, 0)) #check for events both pre and post 2020
 surv_data_3 <- merge(surv_data, events, by = "providerid")
 surv_data_3 <- surv_data_3 %>% mutate(provider = case_when(
   (events_prepost == 1) ~ as.character(providerid),
@@ -169,7 +182,7 @@ surv_data_3$provider <- relevel(as.factor(surv_data_3$provider), ref = "smallCom
 mod3v2 <- coxph(Surv(X,delt) ~ i_2020 + age_c + race_bin + famhx_bin + com_count + risk_group + margin + epe + svi + log_preopPSA + i_2020:strata(provider) , data = surv_data_3)
 summary(mod3v2)
 
-table_mod3 <- tbl_regression(mod3v2, exponentiate = T)
+table_mod3 <- tbl_regression(mod3v2, exponentiate = T, include = c("i_2020", "i_2020:strata(provider)"), label = list(i_2020 ~ "Post-2020", 'i_2020:strata(provider)' ~ "Post-2020*Provider"))
 table_mod3
 
 
@@ -183,3 +196,5 @@ table_1 <- surv_data %>% select(i_2020_label, age, race_bin, famhx_bin, com_coun
               type = list(com_count ~ "continuous"),
               missing_text = "Missing")
 table_1
+xtable(as.data.frame(table_1))
+
